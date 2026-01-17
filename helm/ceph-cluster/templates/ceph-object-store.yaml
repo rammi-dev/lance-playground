@@ -1,0 +1,56 @@
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    failureDomain: osd  # Changed from 'host' for single-node tolerance
+    replicated:
+      size: 2  # Reduced from 3 for minimal setup
+  dataPool:
+    failureDomain: osd
+    replicated:
+      size: 2  # Using replication instead of erasure coding (simpler, less resources)
+  preservePoolsOnDelete: true
+  gateway:
+    port: 80
+    instances: 1
+    securePort: 443
+    sslCertificateRef:
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+  # Enable STS for temporary credentials
+  security:
+    s3:
+      connectionSecure: false
+    kms:
+      connectionDetails: {}
+  # Enable STS endpoint
+  protocols:
+    s3:
+      enabled: true
+      authUseKeystone: false
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-rgw-my-store-nodeport
+  namespace: rook-ceph
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30000
+  selector:
+    app: rook-ceph-rgw
+    rook_object_store: my-store
+

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: rook-custom
+description: A wrapper chart for Rook Ceph with local CRDs
+type: application
+version: 0.1.0
+appVersion: "1.13.3"
+dependencies:
+  - name: rook-ceph
+    version: v1.13.3
+    repository: https://charts.rook.io/release

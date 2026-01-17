@@ -1,0 +1,101 @@
+# Minimal resource configuration for lab environment
+rook-ceph:
+  # Minimal operator resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Ceph Cluster Configuration
+cephCluster:
+  enabled: true
+  name: rook-ceph
+  cephVersion:
+    image: quay.io/ceph/ceph:v18.2.0
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 1  # Minimal for lab
+    allowMultiplePerNode: false
+  mgr:
+    count: 1
+  dashboard:
+    enabled: true
+    ssl: false
+  monitoring:
+    enabled: false
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+    directories:
+      - path: /var/lib/rook-storage
+  resources:
+    mon:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+    mgr:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+    osd:
+      limits:
+        cpu: "1000m"
+        memory: "2Gi"
+      requests:
+        cpu: "200m"
+        memory: "1Gi"
+
+# S3 Object Store Configuration
+cephObjectStore:
+  enabled: true
+  name: my-store
+  metadataPool:
+    failureDomain: osd
+    replicated:
+      size: 2
+  dataPool:
+    failureDomain: osd
+    replicated:
+      size: 2
+  preservePoolsOnDelete: true
+  gateway:
+    port: 80
+    instances: 1
+    securePort: 443
+    sslCertificateRef:
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+  # Enable STS for temporary credentials
+  security:
+    s3:
+      connectionSecure: false
+    kms:
+      connectionDetails: {}
+  # Enable S3 protocol
+  protocols:
+    s3:
+      enabled: true
+      authUseKeystone: false
+  # NodePort Service for S3 access
+  service:
+    enabled: true
+    name: rook-ceph-rgw-my-store-nodeport
+    type: NodePort
+    port: 80
+    targetPort: 80
+    nodePort: 30000
+

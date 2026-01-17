@@ -1,0 +1,6 @@
+# Ceph Cluster Configuration
+# This chart deploys the actual Ceph cluster and S3 object store
+# Requires: Rook operator must be installed first
+
+# Note: These are static configurations for lab use
+# For production, consider parameterizing these values
