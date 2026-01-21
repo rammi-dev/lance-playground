@@ -46,6 +46,11 @@ seaweedfs:
   filer:
     enabled: true
     replicas: 1
+    # Persistent storage for Filer metadata (LevelDB2)
+    data:
+      type: "persistentVolumeClaim"
+      size: "5Gi"
+      storageClass: ""  # Use default storage class
     s3:
       enabled: true
       port: 8333
