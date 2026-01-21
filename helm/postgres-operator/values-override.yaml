@@ -1,0 +1,14 @@
+# Customizations for Zalando Postgres Operator
+# Override values from values.yaml for lab environment
+
+postgres-operator:
+  configKubernetes:
+    enable_pod_antiaffinity: false  # Allow single-node deployment
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi

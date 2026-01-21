@@ -1,0 +1,24 @@
+# PostgreSQL Cluster Configuration
+
+cluster:
+  name: keycloak-db
+  namespace: postgres
+  teamId: datalake
+  instances: 1
+  volume:
+    size: 10Gi
+  postgresql:
+    version: "16"
+  users:
+    keycloak:
+      - superuser
+      - createdb
+  databases:
+    keycloak: keycloak
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi

@@ -1,102 +1,131 @@
-# Rook Ceph on Minikube
+# Data Platform on Minikube
 
-Complete deployment guide for Rook Ceph with S3 object storage on Minikube.
+Production-ready data platform with PostgreSQL, Keycloak, and SeaweedFS using Kubernetes operators.
 
 ## Quick Start
 
 ```bash
-# 1. Start Minikube
-bash start.sh
+# 0. Start Minikube (profile: lakehouse)
+./scripts/00-start-minikube.sh
 
-# 2. Deploy Rook Operator
-./scripts/01-deploy-operator.sh
+# 1. Deploy PostgreSQL ✅ COMPLETED
+./scripts/11-deploy-postgres-operator.sh
+./scripts/12-deploy-postgres.sh
 
-# 3. Deploy Ceph Cluster + S3
-./scripts/02-deploy-cluster.sh
+# 2. Deploy Keycloak (NEXT)
+./scripts/21-deploy-keycloak-operator.sh
+./scripts/22-deploy-keycloak.sh
 
-# 4. Verify S3
-./scripts/03-verify-s3.sh
+# 3. Deploy SeaweedFS (TODO)
+./scripts/31-deploy-seaweed.sh
+
+# 4. Verify
+kubectl get postgresql -n postgres
+kubectl get keycloak -n keycloak
+kubectl get pods -n seaweed
+```
+
+## Minikube Management
+
+```bash
+# Check status
+./scripts/00-check-minikube.sh
+
+# Delete cluster
+./scripts/00-delete-minikube.sh
+
+# Restart cluster
+./scripts/00-delete-minikube.sh && ./scripts/00-start-minikube.sh
 ```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│         Minikube (3 nodes)              │
-│                                         │
-│  ┌───────────────────────────────────┐  │
-│  │   Namespace: rook-ceph            │  │
-│  │                                   │  │
-│  │  ┌─────────────────────────────┐  │  │
-│  │  │  Rook Operator              │  │  │
-│  │  │  (helm/rook)                │  │  │
-│  │  └─────────────────────────────┘  │  │
-│  │                                   │  │
-│  │  ┌─────────────────────────────┐  │  │
-│  │  │  Ceph Cluster               │  │  │
-│  │  │  (helm/ceph-cluster)        │  │  │
-│  │  │                             │  │  │
-│  │  │  - Mon (1)                  │  │  │
-│  │  │  - Mgr (1)                  │  │  │
-│  │  │  - OSD (3)                  │  │  │
-│  │  │  - RGW (S3) (1)             │  │  │
-│  │  └─────────────────────────────┘  │  │
-│  └───────────────────────────────────┘  │
-└─────────────────────────────────────────┘
-         │
-         │ NodePort 30000
-         ▼
-    S3 API Access
+┌──────────────────────────────────────┐
+│       Minikube Cluster               │
+│                                      │
+│  PostgreSQL (Zalando Operator)       │
+│  ├─ keycloak-db                      │
+│  └─ Job: postgres-init               │
+│                                      │
+│  Keycloak (Keycloak Operator)        │
+│  ├─ Keycloak instance                │
+│  ├─ Realm: datalake                  │
+│  └─ Job: keycloak-config             │
+│                                      │
+│  SeaweedFS (Helm Chart)              │
+│  ├─ Master + Volume + Filer          │
+│  ├─ S3 API (port 8333)               │
+│  ├─ Buckets: iceberg, lance          │
+│  └─ Job: seaweed-create-buckets      │
+└──────────────────────────────────────┘
 ```
+
+## Components
+
+| Component | Purpose | Deployment |\n|-----------|---------|------------|\n| PostgreSQL | Keycloak database | Zalando Postgres Operator |\n| Keycloak | SSO & RBAC | Keycloak Operator |\n| SeaweedFS | S3 object storage | Official Helm Chart |
+
+## SeaweedFS Access
+
+### S3 API
+**Endpoint**: `http://seaweed-filer-s3.seaweed.svc:8333`  
+**Access Key**: `admin`  
+**Secret Key**: `admin`
+
+### Web UIs
+**Filer UI** (File Browser): Port 8888  
+**Admin UI** (Cluster Management): Port 23646
+
+**Access all UIs with one command:**
+```bash
+./scripts/32-access-seaweed-ui.sh
+```
+
+Then open:
+- Filer UI: http://localhost:8888
+- Admin UI: http://localhost:23646
+- S3 API: http://localhost:8333
+
+## Documentation
+
+- [PostgreSQL Setup](docs/01-postgresql.md)
+- [Keycloak Setup](docs/02-keycloak.md)
+- [SeaweedFS Setup](docs/03-seaweedfs.md)
+- [Verification Guide](docs/04-verification.md)
 
 ## Project Structure
 
 ```
 .
-├── helm/
-│   ├── rook/                    # Rook Operator chart
-│   │   ├── Chart.yaml
-│   │   ├── values.yaml          # Upstream defaults
-│   │   └── values-override.yaml # Lab configuration
-│   └── ceph-cluster/            # Ceph Cluster chart
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-│           ├── ceph-cluster.yaml
-│           └── ceph-object-store.yaml
-├── scripts/
-│   ├── 01-deploy-operator.sh   # Deploy operator
-│   ├── 02-deploy-cluster.sh    # Deploy cluster
-│   ├── 03-verify-s3.sh         # Verify S3
-│   └── cleanup.sh              # Cleanup all
-├── docs/
-│   ├── 01-operator.md          # Operator guide
-│   ├── 02-cluster.md           # Cluster guide
-│   └── 03-s3-object-store.md   # S3 guide
-├── start.sh                    # Minikube startup
-└── README.md                   # This file
+├── helm/                    # Helm charts
+│   ├── postgres-operator/
+│   ├── postgres/
+│   ├── keycloak-operator/
+│   ├── keycloak/
+│   └── seaweed/
+├── scripts/                 # Deployment scripts
+│   ├── 00-start-minikube.sh
+│   ├── 00-check-minikube.sh
+│   ├── 00-delete-minikube.sh
+│   ├── 00-verify-kubectl.sh
+│   ├── 00-verify-helm.sh
+│   ├── 10-setup-postgres-chart.sh
+│   ├── 11-deploy-postgres-operator.sh
+│   ├── 12-deploy-postgres.sh
+│   ├── 20-setup-keycloak-chart.sh
+│   ├── 21-deploy-keycloak-operator.sh
+│   ├── 22-deploy-keycloak.sh
+│   ├── 30-setup-seaweed-chart.sh
+│   ├── 31-deploy-seaweed.sh
+│   └── cleanup.sh
+├── docs/                    # Documentation
+│   ├── 01-postgresql.md
+│   ├── 02-keycloak.md
+│   ├── 03-seaweedfs.md
+│   └── 04-verification.md
+├── claude-tasks.md         # Task tracking
+└── README.md               # This file
 ```
-
-## Documentation
-
-- [Operator Deployment](docs/01-operator.md)
-- [Cluster Deployment](docs/02-cluster.md)
-- [S3 Object Store](docs/03-s3-object-store.md)
-
-## Resource Requirements
-
-**Minimal Lab:**
-- 3 nodes
-- 6GB RAM per node
-- 4 CPUs per node
-- Total: ~18GB RAM, 12 CPUs
-
-**Actual Usage:**
-- Operator: ~100-200MB RAM
-- Mon: ~256-512MB RAM
-- Mgr: ~256-512MB RAM
-- OSD: ~1-2GB RAM each
-- RGW: ~256-512MB RAM
 
 ## Cleanup
 
@@ -104,32 +133,8 @@ bash start.sh
 ./scripts/cleanup.sh
 ```
 
-## Troubleshooting
+## Requirements
 
-### Common Issues
-
-1. **Pods stuck in Pending**
-   - Check node resources: `kubectl top nodes`
-   - Check events: `kubectl -n rook-ceph get events`
-
-2. **Cluster not healthy**
-   - Check logs: `kubectl -n rook-ceph logs -l app=rook-ceph-operator`
-   - Check Ceph status: `kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph status`
-
-3. **S3 connection refused**
-   - Verify RGW pods: `kubectl -n rook-ceph get pods -l app=rook-ceph-rgw`
-   - Check service: `kubectl -n rook-ceph get svc`
-
-## Next Steps
-
-1. Create S3 users
-2. Configure bucket policies
-3. Integrate with applications
-4. Set up monitoring (Prometheus/Grafana)
-5. Configure backups
-
-## References
-
-- [Rook Documentation](https://rook.io/docs/rook/latest/)
-- [Ceph Documentation](https://docs.ceph.com/)
-- [S3 API Reference](https://docs.aws.amazon.com/AmazonS3/latest/API/)
+- Minikube
+- kubectl
+- Helm 3

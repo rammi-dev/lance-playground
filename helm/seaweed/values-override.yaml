@@ -1,0 +1,66 @@
+# SeaweedFS Configuration Overrides
+# Customizations for lab environment (Minikube 3-node cluster)
+
+seaweedfs:
+  # Global settings
+  global:
+    replicationPlacement: "000"  # No replication for lab environment
+    monitoring:
+      enabled: false  # Disable monitoring for simplicity
+  
+  # Admin UI for cluster management
+  admin:
+    enabled: true
+    port: 23646
+  
+  # Master server - coordinates volume servers
+  master:
+    enabled: true
+    replicas: 1  # Single master for lab
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  
+  # Volume server - stores actual data
+  volume:
+    enabled: true
+    replicas: 1  # Single volume server for lab
+    dataDirs:
+      - name: data
+        type: "persistentVolumeClaim"
+        size: "20Gi"
+        storageClass: ""  # Use default storage class
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  
+  # Filer with S3 API
+  filer:
+    enabled: true
+    replicas: 1
+    s3:
+      enabled: true
+      port: 8333
+      # S3 authentication - default admin credentials
+      # Can be customized via s3.config secret
+    defaultReplicaPlacement: "000"  # No replication
+    # Use leveldb2 for metadata storage (embedded, no external DB needed)
+    config: |
+      [leveldb2]
+      enabled = true
+      dir = "/data/filerldb2"
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi

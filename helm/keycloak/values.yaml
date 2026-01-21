@@ -1,0 +1,46 @@
+# Keycloak Instance Configuration
+
+keycloak:
+  name: keycloak
+  namespace: keycloak
+  instances: 1
+  
+  database:
+    vendor: postgres
+    host: keycloak-db.postgres.svc
+    database: keycloak
+    secretName: keycloak.keycloak-db.credentials.postgresql.acid.zalan.do
+    usernameKey: username
+    passwordKey: password
+  
+  http:
+    httpEnabled: true
+    port: 8080
+  
+  hostname:
+    hostname: keycloak.local
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+# Realm configuration
+realm:
+  name: datalake
+  enabled: true
+  
+  users:
+    - username: admin
+      password: admin123
+      role: minio-admin
+    - username: datascientist
+      password: data123
+      role: minio-datascientist
+  
+  roles:
+    - minio-admin
+    - minio-datascientist

@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seaweed-create-buckets
+  namespace: seaweed
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: create-buckets
+        image: amazon/aws-cli:latest
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          value: "admin"  # Default SeaweedFS S3 credentials
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "admin"  # Default SeaweedFS S3 credentials
+        - name: AWS_EC2_METADATA_DISABLED
+          value: "true"
+        - name: S3_ENDPOINT
+          value: "http://seaweed-filer-s3.seaweed.svc:8333"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          #!/bin/bash
+          set -e
+          
+          echo "Waiting for SeaweedFS S3 API to be ready..."
+          until aws s3 ls --endpoint-url $S3_ENDPOINT 2>/dev/null; do
+            echo "S3 API not ready, waiting..."
+            sleep 5
+          done
+          
+          echo "✅ S3 API is ready"
+          
+          # Create buckets
+          echo "Creating bucket: iceberg"
+          aws s3 mb s3://iceberg --endpoint-url $S3_ENDPOINT || echo "Bucket iceberg already exists"
+          
+          echo "Creating bucket: lance"
+          aws s3 mb s3://lance --endpoint-url $S3_ENDPOINT || echo "Bucket lance already exists"
+          
+          echo ""
+          echo "✅ Buckets created successfully"
+          echo ""
+          echo "Available buckets:"
+          aws s3 ls --endpoint-url $S3_ENDPOINT

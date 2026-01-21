@@ -1,0 +1,11 @@
+apiVersion: v2
+name: seaweed
+description: SeaweedFS distributed file system with S3 API
+type: application
+version: 1.0.0
+appVersion: "4.0.407"
+
+dependencies:
+  - name: seaweedfs
+    version: "4.0.407"
+    repository: https://seaweedfs.github.io/seaweedfs/helm

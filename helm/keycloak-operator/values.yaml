@@ -1,0 +1,78 @@
+# Keycloak Operator Configuration
+
+# Namespace where the operator will be deployed
+namespace: keycloak
+
+# Operator image configuration
+image:
+  registry: quay.io
+  repository: keycloak/keycloak-operator
+  tag: "26.5.1"
+  pullPolicy: Always
+
+# Keycloak image that the operator will use for deployments
+keycloakImage:
+  registry: quay.io
+  repository: keycloak/keycloak
+  tag: "26.5.1"
+
+# Operator deployment configuration
+replicas: 1
+
+# Resource limits and requests for the operator
+resources:
+  limits:
+    cpu: 700m
+    memory: 450Mi
+  requests:
+    cpu: 300m
+    memory: 450Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# Health probe configuration
+livenessProbe:
+  httpGet:
+    path: /q/health/live
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /q/health/ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /q/health/started
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+# Watch configuration - JOSDK_WATCH_CURRENT means watch only the namespace where operator is deployed
+watchNamespaces: JOSDK_WATCH_CURRENT
+
+# Labels to apply to all resources
+labels:
+  app.kubernetes.io/name: keycloak-operator
+  app.kubernetes.io/version: "26.5.1"
+  app.kubernetes.io/managed-by: quarkus
+
+# Annotations for the operator deployment
+annotations:
+  app.quarkus.io/quarkus-version: "3.27.1"
+  app.quarkus.io/vcs-uri: "https://github.com/keycloak/keycloak.git"
+  app.quarkus.io/build-timestamp: "2026-01-14 - 18:16:21 +0000"

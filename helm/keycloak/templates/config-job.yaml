@@ -1,0 +1,112 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-config
+  namespace: {{ .Values.keycloak.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: keycloak-config
+      containers:
+      - name: kcadm
+        image: quay.io/keycloak/keycloak:24.0.1
+        env:
+        - name: KC_URL
+          value: "http://{{ .Values.keycloak.name }}-service.{{ .Values.keycloak.namespace }}.svc:{{ .Values.keycloak.http.port }}"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          #!/bin/bash
+          set -e
+          
+          echo "Waiting for Keycloak to be ready..."
+          until curl -sf $KC_URL/health/ready; do
+            echo "Keycloak not ready, waiting..."
+            sleep 10
+          done
+          
+          echo "✅ Keycloak is ready"
+          
+          # Get admin credentials from Keycloak secret
+          KC_USER=$(kubectl get secret keycloak-initial-admin -n {{ .Values.keycloak.namespace }} -o jsonpath='{.data.username}' | base64 -d)
+          KC_PASS=$(kubectl get secret keycloak-initial-admin -n {{ .Values.keycloak.namespace }} -o jsonpath='{.data.password}' | base64 -d)
+          
+          # Login
+          echo "Logging in to Keycloak..."
+          /opt/keycloak/bin/kcadm.sh config credentials \
+            --server $KC_URL \
+            --realm master \
+            --user $KC_USER \
+            --password $KC_PASS
+          
+          # Create realm (idempotent)
+          echo "Creating realm '{{ .Values.realm.name }}'..."
+          /opt/keycloak/bin/kcadm.sh get realms/{{ .Values.realm.name }} || \
+          /opt/keycloak/bin/kcadm.sh create realms \
+            -s realm={{ .Values.realm.name }} \
+            -s enabled={{ .Values.realm.enabled }}
+          
+          # Create roles
+          echo "Creating roles..."
+          {{- range .Values.realm.roles }}
+          /opt/keycloak/bin/kcadm.sh create roles -r {{ $.Values.realm.name }} -s name={{ . }} || true
+          {{- end }}
+          
+          # Create users
+          echo "Creating users..."
+          {{- range .Values.realm.users }}
+          if /opt/keycloak/bin/kcadm.sh get users -r {{ $.Values.realm.name }} -q username={{ .username }} | grep -q "\"username\""; then
+            echo "User {{ .username }} already exists"
+          else
+            echo "Creating user {{ .username }}..."
+            /opt/keycloak/bin/kcadm.sh create users -r {{ $.Values.realm.name }} \
+              -s username={{ .username }} \
+              -s enabled=true \
+              -s credentials='[{"type":"password","value":"{{ .password }}","temporary":false}]'
+          fi
+          
+          # Assign role
+          USER_ID=$(/opt/keycloak/bin/kcadm.sh get users -r {{ $.Values.realm.name }} -q username={{ .username }} | grep -o '"id" : "[^"]*"' | cut -d'"' -f4)
+          /opt/keycloak/bin/kcadm.sh add-roles -r {{ $.Values.realm.name }} --uid $USER_ID --rolename {{ .role }} || true
+          {{- end}}
+          
+          echo "✅ Keycloak configuration complete"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keycloak-config
+  namespace: {{ .Values.keycloak.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keycloak-config
+  namespace: {{ .Values.keycloak.namespace }}
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-config
+  namespace: {{ .Values.keycloak.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keycloak-config
+subjects:
+- kind: ServiceAccount
+  name: keycloak-config
+  namespace: {{ .Values.keycloak.namespace }}
+

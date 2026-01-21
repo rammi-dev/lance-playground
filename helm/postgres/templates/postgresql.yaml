@@ -1,0 +1,30 @@
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  name: {{ .Values.cluster.name }}
+  namespace: {{ .Values.cluster.namespace }}
+spec:
+  teamId: {{ .Values.cluster.teamId | quote }}
+  volume:
+    size: {{ .Values.cluster.volume.size }}
+  numberOfInstances: {{ .Values.cluster.instances }}
+  users:
+    {{- range $user, $privileges := .Values.cluster.users }}
+    {{ $user }}:
+      {{- range $privileges }}
+      - {{ . }}
+      {{- end }}
+    {{- end }}
+  databases:
+    {{- range $db, $owner := .Values.cluster.databases }}
+    {{ $db }}: {{ $owner }}
+    {{- end }}
+  postgresql:
+    version: {{ .Values.cluster.postgresql.version | quote }}
+  resources:
+    limits:
+      cpu: {{ .Values.cluster.resources.limits.cpu }}
+      memory: {{ .Values.cluster.resources.limits.memory }}
+    requests:
+      cpu: {{ .Values.cluster.resources.requests.cpu }}
+      memory: {{ .Values.cluster.resources.requests.memory }}

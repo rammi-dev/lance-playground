@@ -1,0 +1,32 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: {{ .Values.keycloak.name }}
+  namespace: {{ .Values.keycloak.namespace }}
+spec:
+  instances: {{ .Values.keycloak.instances }}
+  
+  db:
+    vendor: {{ .Values.keycloak.database.vendor }}
+    host: {{ .Values.keycloak.database.host }}
+    database: {{ .Values.keycloak.database.database }}
+    usernameSecret:
+      name: {{ .Values.keycloak.database.secretName }}
+      key: {{ .Values.keycloak.database.usernameKey }}
+    passwordSecret:
+      name: {{ .Values.keycloak.database.secretName }}
+      key: {{ .Values.keycloak.database.passwordKey }}
+  
+  http:
+    httpEnabled: {{ .Values.keycloak.http.httpEnabled }}
+  
+  hostname:
+    hostname: {{ .Values.keycloak.hostname.hostname }}
+  
+  resources:
+    limits:
+      cpu: {{ .Values.keycloak.resources.limits.cpu }}
+      memory: {{ .Values.keycloak.resources.limits.memory }}
+    requests:
+      cpu: {{ .Values.keycloak.resources.requests.cpu }}
+      memory: {{ .Values.keycloak.resources.requests.memory }}
